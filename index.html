@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>level editor</title>
+  <style>
+    body { display: flex; font-family: monospace; }
+    #grid { border: 1px solid black; margin-right: 20px; }
+    .row { display: flex; }
+    .cell {
+      width: 40px;
+      height: 20px;
+      border: 1px solid #aaa;
+      cursor: pointer;
+    }
+    .on { background: #4caf50; }
+    #controls { margin-right: 20px; }
+    #output {
+      white-space: pre;
+      border: 1px solid #ccc;
+      padding: 10px;
+      width: 300px;
+      height: 400px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+
+<div id="controls">
+  <button id="prevPage">Prev</button>
+  <button id="nextPage">Next</button>
+  <br><br>
+  <button id="copyPage">Copy Page</button>
+  <button id="pastePage">Paste Page</button>
+  <br><br>
+  <div>Page: <span id="pageLabel">1</span> / 20</div>
+</div>
+
+<div id="grid"></div>
+
+<div id="output"></div>
+
+<script>
+const ROWS = 30;
+const COLS = 4;
+const PAGES = 20;
+
+let currentPage = 0;
+
+let grid = Array.from({ length: PAGES }, () =>
+  Array.from({ length: ROWS }, () => Array(COLS).fill(0))
+);
+
+let clipboardPage = null;
+
+const gridDiv = document.getElementById("grid");
+const outputDiv = document.getElementById("output");
+const pageLabel = document.getElementById("pageLabel");
+
+function buildGrid() {
+  gridDiv.innerHTML = "";
+  for (let r = 0; r < ROWS; r++) {
+    const rowDiv = document.createElement("div");
+    rowDiv.className = "row";
+
+    for (let c = 0; c < COLS; c++) {
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      cell.dataset.row = r;
+      cell.dataset.col = c;
+
+      cell.onclick = () => {
+        grid[currentPage][r][c] ^= 1;
+        drawGrid();
+        updateOutput();
+      };
+
+      rowDiv.appendChild(cell);
+    }
+    gridDiv.appendChild(rowDiv);
+  }
+}
+
+function drawGrid() {
+  const page = grid[currentPage];
+  const cells = gridDiv.querySelectorAll(".cell");
+
+  cells.forEach(cell => {
+    const r = Number(cell.dataset.row);
+    const c = Number(cell.dataset.col);
+    cell.classList.toggle("on", page[r][c] === 1);
+  });
+
+  pageLabel.textContent = currentPage + 1;
+}
+
+function updateOutput() {
+  let out = [];
+  const pageOffset = currentPage * 3000 + 100;
+
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (grid[currentPage][r][c] === 1) {
+        const time = pageOffset + r * 100;
+        out.push(`(${c + 1}, ${time})`);
+      }
+    }
+  }
+
+  outputDiv.textContent = out.join(", ");
+}
+
+document.getElementById("prevPage").onclick = () => {
+  if (currentPage > 0) {
+    currentPage--;
+    drawGrid();
+    updateOutput();
+  }
+};
+
+document.getElementById("nextPage").onclick = () => {
+  if (currentPage < PAGES - 1) {
+    currentPage++;
+    drawGrid();
+    updateOutput();
+  }
+};
+  
+document.getElementById("copyPage").onclick = () => {
+  clipboardPage = JSON.parse(JSON.stringify(grid[currentPage]));
+};
+
+document.getElementById("pastePage").onclick = () => {
+  if (clipboardPage) {
+    grid[currentPage] = JSON.parse(JSON.stringify(clipboardPage));
+    drawGrid();
+    updateOutput();
+  }
+};
+
+buildGrid();
+drawGrid();
+updateOutput();
+</script>
+
+</body>
+</html>
