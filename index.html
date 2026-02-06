@@ -15,15 +15,15 @@
     .on { background: #4caf50; }
     #controls { margin-right: 20px; }
     #output {
-  white-space: pre; 
-  max-height: 200px;      
-  overflow-y: auto;
-  overflow-x: auto; 
-  max-width: 300px;    
-  word-wrap: break-word;   
-  border: 1px solid #ccc;
-  padding: 5px;
-}
+      white-space: pre;
+      max-height: 200px;
+      overflow-y: auto;
+      overflow-x: auto;
+      max-width: 300px;
+      word-wrap: break-word;
+      border: 1px solid #ccc;
+      padding: 5px;
+    }
   </style>
 </head>
 <body>
@@ -33,18 +33,23 @@
   <button id="nextPage">Next</button>
   <input id="bpm" type="number" value="160" min="20" max="400">
   <br><br>
+
   <button id="copyPage">Copy Page</button>
   <button id="pastePage">Paste Page</button>
   <br><br>
+
   <div>Page: <span id="pageLabel">1</span> / 100</div>
   <br><br>
+
+  <button id="downloadJSON">Download JSON</button>
   <button id="downloadCSV">Download CSV</button>
+  <br><br>
+
   <button id="uploadCSV">Upload CSV</button>
   <input type="file" id="csvFileInput" accept=".csv" style="display:none">
 </div>
 
 <div id="grid"></div>
-
 <div id="output"></div>
 
 <script>
@@ -118,7 +123,7 @@ function updateOutput() {
     for (let c = 0; c < COLS; c++) {
       if (grid[currentPage][r][c] === 1) {
         const time = Math.round(currentPage * pageMs + r * rowMs);
-        out.push(`(${c + 1}, ${time})`);
+        out.push(`(${c}, ${time})`);
       }
     }
   }
@@ -141,7 +146,7 @@ document.getElementById("nextPage").onclick = () => {
     updateOutput();
   }
 };
-  
+
 document.getElementById("copyPage").onclick = () => {
   clipboardPage = JSON.parse(JSON.stringify(grid[currentPage]));
 };
@@ -154,7 +159,41 @@ document.getElementById("pastePage").onclick = () => {
   }
 };
 
-  document.getElementById("downloadCSV").onclick = () => {
+document.getElementById("downloadJSON").onclick = () => {
+  const rowMs = (16 / bpm) * 1000;
+  const pageMs = rowMs * ROWS;
+
+  let notes = [];
+
+  for (let p = 0; p < PAGES; p++) {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        if (grid[p][r][c] === 1) {
+          const time = Math.round(p * pageMs + r * rowMs);
+          notes.push({ time: time, lane: c });
+        }
+      }
+    }
+  }
+
+  const json = JSON.stringify({
+    bpm: bpm,
+    speed: 1.0,
+    notes: notes
+  }, null, 2);
+
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "chart.json";
+  a.click();
+
+  URL.revokeObjectURL(url);
+};
+
+document.getElementById("downloadCSV").onclick = () => {
   const rowMs = (16 / bpm) * 1000;
   const pageMs = rowMs * ROWS;
 
@@ -165,12 +204,11 @@ document.getElementById("pastePage").onclick = () => {
       for (let c = 0; c < COLS; c++) {
         if (grid[p][r][c] === 1) {
           const time = Math.round(p * pageMs + r * rowMs);
-          csv += `${c + 1},${time}\n`;
+          csv += `${c},${time}\n`;
         }
       }
     }
   }
-
 
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
@@ -207,14 +245,13 @@ function loadCSVIntoGrid(csvText) {
   );
 
   const lines = csvText.trim().split("\n");
-  const header = lines.shift();
 
   const rowMs = (16 / bpm) * 1000;
   const pageMs = rowMs * ROWS;
 
   for (const line of lines) {
     const [laneStr, timeStr] = line.split(",");
-    const lane = Number(laneStr) - 1;
+    const lane = Number(laneStr);
     const time = Number(timeStr);
 
     const page = Math.floor(time / pageMs);
